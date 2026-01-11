@@ -5,7 +5,7 @@ const lang = getString('group');
 
 
 Sparky({
-	name: 'tag',
+	name: 'return',
 	fromMe: true,
 	desc: lang.TAG_DESC,
 	category: 'group',
@@ -37,7 +37,7 @@ Sparky({
 
 
 Sparky({
-	name: "tagall",
+	name: "👻",
 	fromMe: true,
 	desc: lang.TAGALL_DESC,
 	category: "group",
