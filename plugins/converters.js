@@ -201,7 +201,7 @@ Sparky(
   {
     name: "doc",
     fromMe: isPublic,
-    category: "tools",
+    category: "converters",
     desc: "Convert replied media to document",
   },
   async ({ m, client, args }) => {
