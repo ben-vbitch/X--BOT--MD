@@ -206,39 +206,58 @@ Sparky(
   },
   async ({ m, client, args }) => {
     try {
-      const quoted = m.quoted;
+      if (
+        !m.quoted ||
+        !(
+          m.quoted.message.imageMessage ||
+          m.quoted.message.videoMessage ||
+          m.quoted.message.audioMessage ||
+          m.quoted.message.documentMessage ||
+          m.quoted.message.stickerMessage
+        )
+      ) {
+        return await m.reply("Reply to a media message bro 🙂");
+      }
 
-      if (!quoted || !quoted.mimetype)
-        return await m.reply("this isn't a media my nigger");
+      await m.react("☠️");
+
+      const buffer = await m.quoted.download();
+
+      // Detect mimetype properly
+      const mimetype =
+        m.quoted.message.imageMessage?.mimetype ||
+        m.quoted.message.videoMessage?.mimetype ||
+        m.quoted.message.audioMessage?.mimetype ||
+        m.quoted.message.documentMessage?.mimetype ||
+        "application/octet-stream";
 
       let filename = args || "file";
 
-      // Auto extension detect
       if (!filename.includes(".")) {
-        const ext = quoted.mimetype.split("/")[1] || "bin";
+        const ext = mimetype.split("/")[1] || "bin";
         filename += `.${ext}`;
       }
 
-      // Download media
-      const buffer = await quoted.download();
-
-      // Send as document
       await client.sendMessage(
         m.jid,
         {
           document: buffer,
+          mimetype,
           fileName: filename,
-          mimetype: quoted.mimetype,
         },
         { quoted: m }
       );
 
+      await m.react("🍻");
+
     } catch (err) {
       console.log(err);
+      await m.react("❌");
       m.reply("Error converting media 😅");
     }
   }
 );
+
 
 
 Sparky(
