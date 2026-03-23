@@ -36,7 +36,7 @@ Sparky(
 );
 
 Sparky({
-    name: "jain",
+    name: "nana",
     fromMe: isPublic,
     category: "misc",
     desc: "AI chat with memory"
