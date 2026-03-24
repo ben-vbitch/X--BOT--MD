@@ -44,7 +44,7 @@ Sparky({
 async ({ m, args }) => {
 
     args = args || m.quoted?.text;
-    if (!args) return m.reply("Hi JAIN HERE☠️");
+    if (!args) return m.reply("HELLOO NAANA HERE🌸");
 
     try {
 
