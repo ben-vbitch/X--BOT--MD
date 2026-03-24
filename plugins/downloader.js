@@ -44,7 +44,7 @@ Sparky({
 async ({ m, args }) => {
 
     args = args || m.quoted?.text;
-    if (!args) return m.reply("HELLOO NAANA HERE🌸");
+    if (!args) return m.reply("Hi NANA HERE🎈");
 
     try {
 
@@ -56,7 +56,7 @@ async ({ m, args }) => {
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-            model: "llama-3.3-70b-versatile",
+                model: "llama3-8b-8192",
                 messages: history
             },
             {
