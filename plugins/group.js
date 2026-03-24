@@ -407,3 +407,48 @@ Sparky({
 	return await m.reply(lang.GPP_FAILED);
 	}
 });
+
+
+Sparky({
+    name: 'ginfo',
+    fromMe: true, 
+    desc: 'Get detailed group information including members, admins, and owner',
+    category: 'group',
+}, async ({ client, m }) => {
+    if (!m.isGroup) return await m.reply(lang.NOT_GROUP || 'This command can only be used in groups!');
+
+    try {
+        const groupMetadata = await client.groupMetadata(m.jid);
+        const participants = groupMetadata.participants;
+        const groupAdmins = participants.filter(p => p.admin);
+        const listAdmin = groupAdmins
+            .map((v, i) => `${i + 1}. @${v.id.split('@')[0]}`)
+            .join('\n');
+        const owner = groupMetadata.owner || groupAdmins.find(p => p.admin === 'superadmin')?.id || m.jid.split('-')[0] + '@s.whatsapp.net';
+        let pp;
+        try {
+            pp = await client.profilePictureUrl(m.jid, 'image');
+        } catch {
+            pp = 'https://i.imgur.com/2wzGhpF.jpeg'; 
+        }
+        const text = `
+┌──「 *INFO GROUP* 」
+▢ *♻️ID:* ${groupMetadata.id}
+▢ *🔖NAME:* ${groupMetadata.subject}
+▢ *👥Members:* ${participants.length}
+▢ *🤿Group Owner:* @${owner.split('@')[0]}
+▢ *🕵🏻‍♂️Admins:*
+${listAdmin}
+▢ *📌Description:* ${groupMetadata.desc?.toString() || 'No description'}
+        `.trim();
+        await client.sendMessage(m.jid, {
+            image: { url: pp },
+            caption: text,
+            mentions: [...groupAdmins.map(v => v.id), owner]
+        });
+
+    } catch (error) {
+        console.error('Error in groupinfo command:', error);
+        await m.reply(lang.ERROR_METADATA || 'Failed to get group info!');
+    }
+});
