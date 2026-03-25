@@ -48,36 +48,50 @@ async ({ m, args }) => {
 
     try {
 
-        const chatId = m.jid;
-        const history = getMessages(chatId);
+const chatId = m.jid;
+let history = getMessages(chatId) || [];
+history = history
+  .filter(msg => msg && msg.role && msg.content)
+  .map(msg => ({
+    role: msg.role,
+    content: String(msg.content)
+  }));
 
-        history.push({ role: "user", content: args });
+const messages = [
+  {
+    role: "system",
+    content: "You are NANA, a helpful WhatsApp AI assistant."
+  },
+  ...history,
+  { role: "user", content: args }
+];
 
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama3-8b-8192",
-                messages: history
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${config.GROQ_API_KEY}`,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+const res = await axios.post(
+  "https://api.groq.com/openai/v1/chat/completions",
+  {
+    model: "llama-3.1-8b-instant",
+    messages: messages
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${config.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    }
+  }
+);
 
-        const reply = res.data.choices[0].message.content;
+const reply = res.data.choices[0].message.content;
+addMessage(chatId, "user", args);
+addMessage(chatId, "assistant", reply);
 
-        addMessage(chatId, "user", args);
-        addMessage(chatId, "assistant", reply);
-
-        return m.reply(reply);
+return m.reply(reply);
 
     } catch (err) {
-        console.log(err);
-        return m.reply("JAIN ERROR NE UMBI☠️");
-    }
+    console.log("STATUS:", err.response?.status);
+    console.log("DATA:", err.response?.data);
+    console.log("MESSAGE:", err.message);
+    return m.reply("AI broke ☠️");
+}
 });
 
 // Sparky({
