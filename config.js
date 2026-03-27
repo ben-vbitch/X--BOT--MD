@@ -75,6 +75,7 @@ module.exports = {
 	STICKER_DATA: process.env.STICKER_DATA || `🇹🇭⃝࿅ᴛͥʜͭ͢ᴇᴊᷟᴜꜱᷤᴢ͢ ⧽↝💎`,
 	SUDO: process.env.SUDO || "918129927512",
 	GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+	PEXELS_KEY: process.env.PEXELS_KEY || "",
 	WORK_TYPE: process.env.WORK_TYPE || "public",
 	SAVE_STATUS: toBool(process.env.SAVE_STATUS || "false"),
 	STATUS_REPLY: toBool(process.env.STATUS_REPLY || "false"),
