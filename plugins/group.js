@@ -1,7 +1,43 @@
 const {delay} = require('baileys');
-const {Sparky, isPublic} = require('../lib');
+const {Sparky, isPublic, getMsg, resetMsgs, secondsToHms} = require('../lib');
 const {getString} = require('./pluginsCore');
 const lang = getString('group');
+
+Sparky({
+    on: "message",
+}, async ({ m }) => {
+	console.log("MSG EVENT TRIGGERED");
+
+    if (!m.isGroup) return;
+
+    let user = m.participant || m.sender || m.key?.participant;
+
+    if (!user) {
+        console.log("TRACKING: skipped (no user)");
+        return;
+    }
+
+    if (user.endsWith("@lid")) {
+        return; 
+    }
+
+    if (user.includes(":")) {
+        user = user.split(":")[0] + "@s.whatsapp.net";
+    }
+
+    if (!user.endsWith("@s.whatsapp.net")) {
+        console.log("TRACKING: skipped invalid ->", user);
+        return;
+    }
+
+    console.log("TRACKING FIXED:", user);
+
+    try {
+        addMsg(m.jid, user);
+    } catch (e) {
+        console.log("TRACK ERROR:", e);
+    }
+});
 
 
 Sparky({
@@ -451,4 +487,69 @@ ${listAdmin}
         console.error('Error in groupinfo command:', error);
         await m.reply(lang.ERROR_METADATA || 'Failed to get group info!');
     }
+});
+
+const fs = require("fs");
+const path = require("path");
+const MSG_FILE = path.join(__dirname, "msgDB.json");
+
+function loadDB() {
+    if (!fs.existsSync(MSG_FILE)) return {};
+    return JSON.parse(fs.readFileSync(MSG_FILE));
+}
+
+function saveDB(data) {
+    fs.writeFileSync(MSG_FILE, JSON.stringify(data, null, 2));
+}
+
+function addMsg(jid, user) {
+    const db = loadDB();
+
+    if (!db[jid]) db[jid] = {};
+    if (!db[jid][user]) {
+        db[jid][user] = { total: 0, time: 0 };
+    }
+
+    db[jid][user].total += 1;
+    db[jid][user].time = Date.now();
+
+    saveDB(db);
+}
+
+Sparky({
+    name: "msgs",
+    fromMe: true,
+    desc: "Show user message stats",
+    category: "group",
+}, async ({ m }) => {
+
+    if (!m.isGroup) return m.reply("❌ Group only");
+
+    const db = loadDB();
+    const groupData = db[m.jid] || {};
+
+    if (!Object.keys(groupData).length) {
+        return m.reply("⚠️ No data yet");
+    }
+
+    let msg = "📊 *Message Stats*\n\n";
+
+    const now = Date.now();
+
+    for (const user in groupData) {
+        const data = groupData[user];
+
+        const last = data.time
+            ? Math.floor((now - data.time) / 1000) + "s ago"
+            : "never";
+
+        const number = user.split("@")[0].replace(/[^0-9]/g, '');
+msg += `👤 @${number}\n`;
+        msg += `📨 Total: ${data.total}\n`;
+        msg += `⏱️ Last: ${last}\n\n`;
+    }
+
+    return m.sendMsg(m.jid, msg, {
+        mentions: Object.keys(groupData)
+    });
 });
