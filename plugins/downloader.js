@@ -128,49 +128,48 @@ return m.reply(reply);
 //     }
 // });
 
-Sparky(
-    {
-        name: "img",
-        fromMe: isPublic,
-        desc: "Google Image search",
-        category: "downloader",
-    },
-    async ({
-        m, client, args
-    }) => {
-        try {
-            async function gimage(query, amount = 5) {
-                let list = [];
-                return new Promise((resolve, reject) => {
-                    gis(query, async (error, result) => {
-                        for (
-                            var i = 0;
-                            i < (result.length < amount ? result.length : amount);
-                            i++
-                        ) {
-                            list.push(result[i].url);
-                            resolve(list);
-                        }
-                    });
-                });
-            }
-            if (!args) return await m.reply("Enter Query,Number");
-            let [query,
-                amount] = args.split(",");
-            let result = await gimage(query, amount);
-            await m.reply(
-                `_Downloading ${amount || 5} images for ${query}_`
-            );
-            for (let i of result) {
-                await m.sendMsg(m.jid, i, {}, "image")
-            }
+Sparky({
+    name: "img",
+    fromMe: isPublic,
+    desc: "Search images (Pexels)",
+    category: "downloader",
+}, async ({ m, args }) => {
+    try {
+        if (!args) return m.reply("Enter query bro\nExample: img car,5");
 
-        } catch (e) {
-            console.log(e)
+        let [query, amount] = args.split(",");
+        amount = parseInt(amount) || 5;
+
+        await m.reply(`🔍 Searching ${amount} images for *${query}*...`);
+
+        const res = await axios.get(
+            "https://api.pexels.com/v1/search",
+            {
+                headers: {
+                    Authorization: config.PEXELS_KEY
+                },
+                params: {
+                    query: query,
+                    per_page: amount
+                }
+            }
+        );
+
+        const images = res.data.photos;
+
+        if (!images || images.length === 0) {
+            return m.reply("No images found ❌");
         }
-    }
-);
 
+        for (let img of images) {
+            await m.sendMsg(m.jid, img.src.medium, {}, "image");
+        }
+
+    } catch (e) {
+        console.log("PEXELS ERROR:", e.response?.data || e.message);
+        await m.reply("Error fetching images ❌");
+    }
+});
 Sparky({
     name: "pintrest",
     fromMe: isPublic,
