@@ -3,6 +3,8 @@ const {getString, appendMp3Data, convertToMp3, addExifToWebP, getBuffer, getJson
 const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
+const fs = require("fs");
+const PDFDocument = require("pdfkit");
 
 Sparky({
     name: "url",
@@ -328,3 +330,89 @@ Sparky(
 	
 			}
 		});
+
+    let pdfStore = {};
+
+    Sparky({
+    name: "addimg",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Add image to PDF list",
+}, async ({ m }) => {
+
+    if (!m.quoted || !m.quoted.message.imageMessage) {
+        return m.reply("❌ Reply to an image");
+    }
+
+    await m.react("☠️");
+
+    const buffer = await m.quoted.download();
+
+    if (!pdfStore[m.jid]) pdfStore[m.jid] = [];
+    pdfStore[m.jid].push(buffer);
+
+    await m.react("🍻");
+    m.reply(`✅ Image added (${pdfStore[m.jid].length})`);
+});
+
+Sparky({
+    name: "pdf",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Convert stored images into PDF",
+}, async ({ m, client }) => {
+
+    try {
+        if (!pdfStore[m.jid] || pdfStore[m.jid].length === 0) {
+            return m.reply("⚠️ No images stored");
+        }
+
+        await m.react("☠️");
+
+        const filePath = `./temp_${Date.now()}.pdf`;
+        const doc = new PDFDocument();
+
+        doc.pipe(fs.createWriteStream(filePath));
+
+        pdfStore[m.jid].forEach((img, index) => {
+            if (index !== 0) doc.addPage();
+
+            doc.image(img, {
+                fit: [500, 700],
+                align: "center",
+                valign: "center"
+            });
+        });
+
+        doc.end();
+
+        setTimeout(async () => {
+            await client.sendMessage(m.jid, {
+                document: fs.readFileSync(filePath),
+                mimetype: "application/pdf",
+                fileName: "images.pdf"
+            }, { quoted: m });
+
+            fs.unlinkSync(filePath);
+            pdfStore[m.jid] = []; // 🔥 auto clear
+
+            await m.react("🍻");
+        }, 2000);
+
+    } catch (err) {
+        console.log(err);
+        await m.react("❌");
+        m.reply("Error creating PDF 😅");
+    }
+});
+
+Sparky({
+    name: "clearimg",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Clear stored images",
+}, async ({ m }) => {
+    pdfStore[m.jid] = [];
+    m.reply("🗑️ Cleared stored images");
+});
+
