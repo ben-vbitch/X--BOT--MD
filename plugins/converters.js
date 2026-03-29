@@ -4,7 +4,8 @@ const googleTTS = require('google-tts-api');
 const config = require('../config.js');
 const lang = getString('converters');
 const fs = require("fs");
-const PDFDocument = require("pdfkit");
+const PDFDocument = require("pdfkit"); 
+const { PDFDocument: PDFLib } = require("pdf-lib"); 
 
 Sparky({
     name: "url",
@@ -332,8 +333,9 @@ Sparky(
 		});
 
     let pdfStore = {};
+    let mergePdfStore = {};
 
-    Sparky({
+Sparky({
     name: "addimg",
     fromMe: isPublic,
     category: "converters",
@@ -349,10 +351,35 @@ Sparky(
     const buffer = await m.quoted.download();
 
     if (!pdfStore[m.jid]) pdfStore[m.jid] = [];
-    pdfStore[m.jid].push(buffer);
+
+    pdfStore[m.jid].push({
+        type: "image",
+        content: buffer
+    });
 
     await m.react("🍻");
-    m.reply(`✅ Image added (${pdfStore[m.jid].length})`);
+    m.reply(`🖼️ Image added (${pdfStore[m.jid].length})`);
+});
+
+Sparky({
+    name: "addtext",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Add text to PDF",
+}, async ({ m }) => {
+
+    const text = m.quoted?.text || m.text.split(" ").slice(1).join(" ");
+
+    if (!text) return m.reply("❌ Provide or reply to text");
+
+    if (!pdfStore[m.jid]) pdfStore[m.jid] = [];
+
+    pdfStore[m.jid].push({
+        type: "text",
+        content: text
+    });
+
+    m.reply(`📝 Text added (${pdfStore[m.jid].length})`);
 });
 
 Sparky({
@@ -374,15 +401,27 @@ Sparky({
 
         doc.pipe(fs.createWriteStream(filePath));
 
-        pdfStore[m.jid].forEach((img, index) => {
-            if (index !== 0) doc.addPage();
+pdfStore[m.jid].forEach((item, index) => {
 
-            doc.image(img, {
-                fit: [500, 700],
-                align: "center",
-                valign: "center"
-            });
+    if (index !== 0) doc.addPage();
+
+    if (item.type === "image") {
+        doc.image(item.content, {
+            fit: [500, 700],
+            align: "center",
+            valign: "center"
         });
+    }
+
+    if (item.type === "text") {
+        doc
+          .fontSize(16)
+          .text(item.content, {
+              align: "left"
+          });
+        }
+        });
+        
 
         doc.end();
 
@@ -390,11 +429,11 @@ Sparky({
             await client.sendMessage(m.jid, {
                 document: fs.readFileSync(filePath),
                 mimetype: "application/pdf",
-                fileName: "images.pdf"
+                fileName: "xbotmd.pdf"
             }, { quoted: m });
 
             fs.unlinkSync(filePath);
-            pdfStore[m.jid] = []; // 🔥 auto clear
+            pdfStore[m.jid] = []; 
 
             await m.react("🍻");
         }, 2000);
@@ -416,3 +455,99 @@ Sparky({
     m.reply("🗑️ Cleared stored images");
 });
 
+Sparky({
+    name: "cleartext",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Clear stored text + images",
+}, async ({ m }) => {
+    pdfStore[m.jid] = [];
+    m.reply("🗑️ Cleared all PDF content");
+});
+
+Sparky({
+    name: "addpdf",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Add PDF to merge list",
+}, async ({ m }) => {
+
+    if (!m.quoted || !m.quoted.message.documentMessage) {
+        return m.reply("❌ Reply to a PDF file");
+    }
+
+    const mime = m.quoted.message.documentMessage.mimetype;
+    if (!mime.includes("pdf")) {
+        return m.reply("❌ Only PDF files allowed");
+    }
+
+    await m.react("☠️");
+
+    const buffer = await m.quoted.download();
+
+    if (!mergePdfStore[m.jid]) mergePdfStore[m.jid] = [];
+
+    mergePdfStore[m.jid].push(buffer);
+
+    await m.react("🍻");
+    m.reply(`📄 PDF added (${mergePdfStore[m.jid].length})`);
+});
+
+Sparky({
+    name: "mergepdf",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Merge added PDFs",
+}, async ({ m, client }) => {
+
+    const files = mergePdfStore[m.jid];
+
+    if (!files || files.length < 2) {
+        return m.reply("❌ Need at least 2 PDFs");
+    }
+
+    try {
+        await m.react("☠️");
+
+        const mergedPdf = await PDFLib.create();
+
+
+        for (let file of files) {
+            const pdf = await PDFLib.load(file);
+            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+
+            pages.forEach((page) => mergedPdf.addPage(page));
+        }
+
+        const mergedBytes = await mergedPdf.save();
+
+        await client.sendMessage(
+            m.jid,
+            {
+                document: Buffer.from(mergedBytes),
+                mimetype: "application/pdf",
+                fileName: "xbotmdmerged.pdf"
+            },
+            { quoted: m }
+        );
+
+        mergePdfStore[m.jid] = [];
+
+        await m.react("🍻");
+
+    } catch (err) {
+        console.log(err);
+        await m.react("❌");
+        m.reply("Error merging PDFs 😅");
+    }
+});
+
+Sparky({
+    name: "clearpdf",
+    fromMe: isPublic,
+    category: "converters",
+    desc: "Clear stored PDFs",
+}, async ({ m }) => {
+    mergePdfStore[m.jid] = [];
+    m.reply("🗑️ Cleared stored PDFs");
+});
